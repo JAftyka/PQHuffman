@@ -81,14 +81,17 @@ public:
         return arr[0];
     }
 
-    void pop() {
+    Node* pop() {
         if (isEmpty()) throw out_of_range("Kolejka pusta");
 
+        Node* root = arr[0];
         arr[0] = arr[count - 1];
         count--;
 
         if (!isEmpty())
             heapifyDown(0);
+
+        return root;
     }
 
     void build(Node** nodes, int n) {
@@ -306,39 +309,48 @@ public:
             string code = p.second;
 
             if (ch == '\n') {
-                out << "\\n " << code << "\n";
+                out << "\\n:" << code << ";";
             } else if (ch == ' ') {
-                out << "\\s " << code << "\n";
+                out << "\\s:" << code << ";";
             } else if (ch == '\t') {
-                out << "\\t " << code << "\n";
+                out << "\\t:" << code << ";";
             } else {
-                out << ch << " " << code << "\n";
+                out << ch << ":" << code << ";";
             }
         }
+        out << "\n";
 
         out.close();
     }
 
-    map<char, string> loadDictionary(const string& filename) {
-        map<char, string> dict;
+    map<char,string> loadDictionary(const string& filename) {
+        map<char,string> dict;
         ifstream in(filename);
-        if (!in.is_open()) {
-            cerr << "Nie udało się otworzyć pliku ze słownikiem do odczytu\n";
-            return dict;
-        }
+        string line;
+        getline(in, line);
 
-        string symbol, code;
-        while (in >> symbol >> code) {
-            char ch;
-            if (symbol == "\\n") ch = '\n';
-            else if (symbol == "\\s") ch = ' ';
-            else if (symbol == "\\t") ch = '\t';
-            else ch = symbol[0];
+        size_t pos = 0;
+        while ((pos = line.find(';')) != string::npos) {
+            string token = line.substr(0, pos);
+            line.erase(0, pos + 1);
 
+            auto sep = token.find(':');
+            char ch = token[0];
+            string code = token.substr(sep + 1);
             dict[ch] = code;
         }
+        return dict;
+    }
 
-        in.close();
+    string extractDictionaryFromCodedFile(string filename) {
+        ifstream file(filename);
+
+        if (verifyFile(file)) {
+            return "";
+        }
+
+        string dict;
+        getline(file, dict); //wyciągam pierwszy wiersz pliku
         return dict;
     }
 
@@ -442,15 +454,14 @@ int main() {
             cout << "Zapisano zakodowany tekst do encoded.txt\n";
         }
         else if (option == 2) {
-            auto dict = hc.loadDictionary("dictionary.txt");
-            if (dict.empty()) { cerr << "dictionary.txt jest pusty lub nie udało się go odczytać\n"; continue; }
+            string coded_text = hc.readInput("to_decode.txt");
+            if (coded_text.empty()) { cerr << "to_decode.txt jest pusty lub nie udało się go odczytać\n"; continue; }
+            string dict_text = hc.extractDictionaryFromCodedFile("to_decode.txt");
+            auto dict = hc.loadDictionary(dict_text);
 
             Node* decodeRoot = hc.buildTreeFromDictionary(dict);
 
-            string coded = hc.readInput("to_decode.txt");
-            if (coded.empty()) { cerr << "to_decode.txt jest pusty lub nie udało się go odczytać\n"; continue; }
-
-            string decoded = hc.decodeWithRoot(coded, decodeRoot);
+            string decoded = hc.decodeWithRoot(coded_text, decodeRoot);
 
             ofstream out("decoded.txt");
             if (out.is_open()) { out << decoded; out.close(); }
