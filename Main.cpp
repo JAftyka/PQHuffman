@@ -278,7 +278,6 @@ public:
         if (!decodeRoot) return "";
 
         string coded_binary_text = ASCIITobinaryString(coded_text);
-        cout << coded_binary_text << endl;
 
         string result;
         Node* curr = decodeRoot;
@@ -300,7 +299,7 @@ public:
                         const string& filename) {
         ofstream out(filename);
         if (!out.is_open()) {
-            cerr << "Nie udało się otworzyć pliku ze słownikiem do zapisu\n";
+            cerr << "Nie udało się otworzyć pliku "<< filename << " do zapisu\n";
             return;
         }
 
@@ -322,25 +321,63 @@ public:
 
         out.close();
     }
+    pair<string, string> readDictionaryAndBinary(const string& filename) {
+        ifstream file(filename, ios::binary);
+        if (!file.is_open()) {
+            cerr << "Nie udało się otworzyć pliku " << filename << "\n";
+            return {};
+        }
 
-    map<char,string> loadDictionary(const string& filename) {
+        string dictionary;
+        char c;
+
+        // czytaj do znaku nowej linii — słownik
+        while (file.get(c)) {
+            if (c == '\n') break;
+            dictionary += c;
+        }
+
+        // reszta pliku = dane binarne
+        string binaryData(
+            (istreambuf_iterator<char>(file)),
+            istreambuf_iterator<char>()
+        );
+
+        file.close();
+        return {dictionary, binaryData};
+    }
+
+    map<char,string> loadDictionaryFromString(const string& line) {
         map<char,string> dict;
-        ifstream in(filename);
-        string line;
-        getline(in, line);
 
         size_t pos = 0;
-        while ((pos = line.find(';')) != string::npos) {
-            string token = line.substr(0, pos);
-            line.erase(0, pos + 1);
+        string tmp = line;
+
+        while ((pos = tmp.find(';')) != string::npos) {
+            string token = tmp.substr(0, pos);
+            tmp.erase(0, pos + 1);
 
             auto sep = token.find(':');
-            char ch = token[0];
-            string code = token.substr(sep + 1);
-            dict[ch] = code;
-        }
-        return dict;
+            if (sep == string::npos) continue;
+
+            char ch;
+
+            if (token[0] == '\\') {
+                if (token[1] == 'n') ch = '\n';
+                else if (token[1] == 's') ch = ' ';
+                else if (token[1] == 't') ch = '\t';
+                else continue;
+            } else {
+                ch = token[0];
+            }
+
+        string code = token.substr(sep + 1);
+        dict[ch] = code;
     }
+
+    return dict;
+    }
+
 
     string extractDictionaryFromCodedFile(string filename) {
         ifstream file(filename);
@@ -350,7 +387,7 @@ public:
         }
 
         string dict;
-        getline(file, dict); //wyciągam pierwszy wiersz pliku
+        getline(file, dict); //wyciągam pierwszy wiersz pliku - słownik
         return dict;
     }
 
@@ -396,6 +433,13 @@ public:
         cin >> choice;
         return choice;
     }
+
+    string getFilename() {
+        cout << "\nPodaj nazwę pliku: ";
+        string filename;
+        cin >> filename;
+        return filename;
+    }
 };
 
 int main() {
@@ -429,10 +473,11 @@ int main() {
                 cout << "'" << (p.first == '\n' ? '\\' : p.first) << "' -> " << p.second << '\n';
             }
 
+            string filename = ui.getFilename();
 
-            string text_to_encode = hc.readInput("to_encode.txt");
+            string text_to_encode = hc.readInput(filename);
             if (text_to_encode.empty()) {
-                cerr << "to_encode.txt jest pusty lub nie udało się go odczytać\n";
+                cerr << "Plik " << filename << " jest pusty lub nie udało się go odczytać\n";
                 continue;
             }
 
@@ -440,28 +485,43 @@ int main() {
             cout << "\nZakodowany tekst:\n" << encoded << "\n";
 
 
-            hc.saveDictionary(codes, "dictionary.txt");
-
-            ofstream out("encoded.txt");
+            ofstream out("encoded.txt", ios::binary);
             if (!out.is_open()) {
                 cerr << "Nie udało się otworzyć encoded.txt do zapisu\n";
             } else {
-                out << encoded;
-                out.close();
-            }
 
-            cout << "\nZapisano słownik do dictionary.txt\n";
-            cout << "Zapisano zakodowany tekst do encoded.txt\n";
+            for (const auto& p : codes) {
+                char ch = p.first;
+                const string& code = p.second;
+
+                if (ch == '\n') out << "\\n:" << code << ";";
+                else if (ch == ' ') out << "\\s:" << code << ";";
+                else if (ch == '\t') out << "\\t:" << code << ";";
+                else out << ch << ":" << code << ";";
+            }
+            out << '\n';
+
+    
+            out.write(encoded.data(), encoded.size());
+            out.close();
+        }
+
+        cout << "\nZapisano słownik + dane binarne do encoded.txt\n";
+
         }
         else if (option == 2) {
-            string coded_text = hc.readInput("to_decode.txt");
-            if (coded_text.empty()) { cerr << "to_decode.txt jest pusty lub nie udało się go odczytać\n"; continue; }
-            string dict_text = hc.extractDictionaryFromCodedFile("to_decode.txt");
-            auto dict = hc.loadDictionary(dict_text);
+
+            string filename = ui.getFilename();
+
+            auto [dictLine, binaryData] = hc.readDictionaryAndBinary(filename);
+
+            auto dict = hc.loadDictionaryFromString(dictLine);
 
             Node* decodeRoot = hc.buildTreeFromDictionary(dict);
 
-            string decoded = hc.decodeWithRoot(coded_text, decodeRoot);
+            string decoded = hc.decodeWithRoot(binaryData, decodeRoot);
+
+            hc.freeDecodedTree(decodeRoot);
 
             ofstream out("decoded.txt");
             if (out.is_open()) { out << decoded; out.close(); }
