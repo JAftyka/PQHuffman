@@ -183,25 +183,25 @@ public:
     }
 
     map<char, string> buildHuffmanTree(const map<char, int>& freq_map) {
-    PriorityQueue pq;
-
-    int n = freq_map.size();
-    if (n == 0) {
-        root = nullptr;
-        return {};
-    }
+        PriorityQueue pq;
         
-    Node** nodes = new Node*[n];
-    int i = 0;
-    for (auto& pair : freq_map) {
-        nodes[i++] = new Node(pair.first, pair.second);
-    }
+        int n = freq_map.size();
+        if (n == 0) {
+            root = nullptr;
+            return {};
+        }
 
-    pq.build(nodes, n);
+        Node** nodes = new Node*[n];
+        int i = 0;
+        for (auto& pair : freq_map) {
+            nodes[i++] = new Node(pair.first, pair.second);
+        }
 
-    while (pq.size() > 1) {
-        Node* left = pq.pop();
-        Node* right = pq.pop();
+        pq.build(nodes, n);
+
+        while (pq.size() > 1) {
+            Node* left = pq.pop();
+            Node* right = pq.pop();
 
         int sum = left->freq + right->freq;
         pq.push(new Node('\0', sum, left, right));
@@ -209,13 +209,14 @@ public:
 
     root = pq.top();
 
-    map<char, string> huffmanCode;
-    printCodes(root, "", huffmanCode);
+        map<char, string> huffmanCode;
+        printCodes(root, "", huffmanCode);
 
-    delete[] nodes; // sprzątanie
+        delete[] nodes; // sprzątanie
 
-    return huffmanCode;
-}
+        return huffmanCode;
+    }
+
 
     string binaryStringToASCII(const string& binaryString) {
       string text;
