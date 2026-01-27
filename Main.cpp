@@ -183,34 +183,39 @@ public:
     }
 
     map<char, string> buildHuffmanTree(const map<char, int>& freq_map) {
-        PriorityQueue pq;
+    PriorityQueue pq;
 
-        for (auto pair : freq_map) {
-            pq.push(new Node(pair.first, pair.second));
-        }
-
-        if (pq.size() == 0) {
-            root = nullptr;
-            return {};
-        }
-
-        while (pq.size() > 1) {
-            Node* left = pq.top();
-            pq.pop();
-            Node* right = pq.top();
-            pq.pop();
-
-            int sum = left->freq + right->freq;
-            pq.push(new Node('\0', sum, left, right));
-        }
-
-        root = pq.top();
-
-        map<char, string> huffmanCode;
-        printCodes(root, "", huffmanCode);
-
-        return huffmanCode;
+    int n = freq_map.size();
+    if (n == 0) {
+        root = nullptr;
+        return {};
     }
+        
+    Node** nodes = new Node*[n];
+    int i = 0;
+    for (auto& pair : freq_map) {
+        nodes[i++] = new Node(pair.first, pair.second);
+    }
+
+    pq.build(nodes, n);
+
+    while (pq.size() > 1) {
+        Node* left = pq.pop();
+        Node* right = pq.pop();
+
+        int sum = left->freq + right->freq;
+        pq.push(new Node('\0', sum, left, right));
+    }
+
+    root = pq.top();
+
+    map<char, string> huffmanCode;
+    printCodes(root, "", huffmanCode);
+
+    delete[] nodes; // sprzątanie
+
+    return huffmanCode;
+}
 
     string binaryStringToASCII(const string& binaryString) {
       string text;
